@@ -33,6 +33,7 @@
  * SUCH DAMAGE.
  */
 
+#define NEED_SERVER_LIST
 #include "irc.h"
 #include "ircaux.h"
 #include "alist.h"
@@ -55,6 +56,12 @@ typedef struct nick_stru
 	short	chanop;		/* True if they are a channel operator */
 	short	voice;		/* 1 if they are, 0 if theyre not, -1 if uk */
 	short	half_assed;	/* 1 if they are, 0 if theyre not, -1 if uk */
+	char	prefixes[17];	/* new-style prefixes, supporting up to
+	                         * sixteen modes, though only WiZ knows
+	                         * why you'd need THAT many unless you are on
+	                         * one of those newfangled Unreals *g*
+	                         * -- Ellenor ellenor@umbrellix.net
+	                         */
 }	Nick;
 
 typedef	struct	nick_list_stru
@@ -89,6 +96,13 @@ struct	channel_stru *	prev;		/* pointer to previous channel */
 	char		chop;		/* true if i'm a channel operator */
 	char		voice;		/* true if i'm a channel voice */
 	char		half_assed;	/* true if i'm a channel helper */
+	char	prefixes[17];	/* contains the modes I have.
+	                         * new-style prefixes, supporting up to
+	                         * sixteen modes, though only WiZ knows
+	                         * why you'd need THAT many unless you are on
+	                         * one of those newfangled Unreals *g*
+	                         * -- Ellenor ellenor@umbrellix.net
+	                         */
 	Timeval		join_time;	/* When we joined the channel */
 }	Channel;
 
@@ -393,7 +407,74 @@ static Nick *	find_suspicious_on_channel (Channel *ch, const char *nick)
 	return NULL;
 }
 
+/*
+ * !!! - This function should be called only once per reconnection attempt,
+ * but is currently called every time a channel nicklist has to be rehashed.
+ * This is inefficient, and produces half a kilobyte of crud.
+ */
 
+void	rebuild_prefix_list (int server)
+{
+	const char *prefix = get_server_005(server, "PREFIX");
+	const char *namesprefixes = strchr(prefix, ')');
+	int pfxlen = (strlen(namesprefixes) - 1);
+	int i, kibosh = 0, reachedop = 0, reachedhalf = 0;
+	Server *srv = get_server(server);
+	memset(&(srv->prefixmodes), 0, sizeof(srv->prefixmodes));
+	if (!prefix || !*prefix || namesprefixes == NULL) {
+		/*
+		 * Sigh, can't always get valid data out of a server
+		 */
+		srv->prefixmodes['@'] = 'o';
+		srv->prefixmodes['%'] = 'h';
+		srv->prefixmodes['+'] = 'v';
+		srv->prefixmodes['o'] = '@';
+		srv->prefixmodes['h'] = '%';
+		srv->prefixmodes['v'] = '+';
+		return;
+	}
+	// + 1 means skip 1. since 0 + 1 = 1, this could be
+	// optimised, but isn't because it's pretty good already
+	// and is autodidactic as to what it's doing
+	//        PREFIX= (ohv)@%+
+	//        prefix  01234567
+	// namesprefixes  ****0123
+	// if a server has silly chars in the namesprefixes, like
+	// letters that should be modes... we'll pretend it's valid
+	// for i = 1, and strlen of namesprefixes is 3
+	// namesprefixes are the prefixes
+	for (i = 0 + 1; i < pfxlen + 1; i++) {
+		if (prefix[i] == namesprefixes[i]
+		// if it fails basic sanity checks
+		    || (!(prefix[i]) || !(namesprefixes[i]))
+		// or, if the prefix in NAMES is a capital
+		    || ( ((namesprefixes[i] > 64) && (namesprefixes[i] < 91))
+		//    or the prefix is a lower
+		    || ((namesprefixes[i] > 96) && (namesprefixes[i] < 123)) )
+		// and the mode for the prefix is none of:
+		    && !(
+		//  - an upper (rare but happens, irc.umbrellix.net has +W)
+		        ((prefix[i] > 64) && (prefix[i] < 91))
+		//  - or a lower
+		        || ((prefix[i] > 96) && (prefix[i] < 123))
+		//  - or a numeral
+		        || ((prefix[i] > 47) && (prefix[i] < 58))
+		       )
+		    ) kibosh = 1; // Kibosh the whole thing.
+		else kibosh = 0;
+		//say("Channel prefix mode %c has prefix %c. %s the mode %s.", prefix[i], namesprefixes[i], kibosh ? "Kiboshing" : "Adding", kibosh ? "due to probable invalidity" : "to the prefix list");
+		if (kibosh) continue;
+		srv->prefixmodes[namesprefixes[i]] = prefix[i];
+		srv->prefixes[namesprefixes[i]] = prefix[i]; // needed because of things
+		srv->prefixmodes[prefix[i]] = namesprefixes[i];
+		if (prefix[i] == 'v') reachedhalf = 1;
+		//say("Channel prefix mode %c is %san op mode, and %sa halfassed op mode.", prefix[i], reachedop ? "not " : "", reachedhalf ? "not " : "");
+		srv->isopprefix[namesprefixes[i]] = (!reachedop) ? 2 : (!reachedhalf) ? 1 : 0;
+		srv->isopprefix[prefix[i]] = (!reachedop) ? 2 : (!reachedhalf) ? 1 : 0;
+		if (prefix[i] == 'o') reachedop = 1;
+		if (prefix[i] == 'h') reachedhalf = 1;
+	}
+}
 
 /*
  * add_to_channel: adds the given nickname to the given channel.  If the
@@ -408,12 +489,15 @@ void 	add_to_channel (const char *channel, const char *nick, int server, int sus
 	int	ischop = oper;
 	int	isvoice = voice;
 	int	half_assed = ha;
+	int	isus = 0, j = 0, i = 0;
 const	char	*prefix;
+	Server *srv = get_server(server);
 
 	if (!(chan = find_channel(channel, server)))
 		return;
 
 	prefix = get_server_005(from_server, "PREFIX");
+	rebuild_prefix_list(server);
 	if (prefix && *prefix == '(' && (prefix = strchr(prefix, ')')))
 		prefix++;
 	if (!prefix || !*prefix)
@@ -422,58 +506,51 @@ const	char	*prefix;
 	/* 
 	 * This is defensive just in case someone in the future
 	 * decides to do the right thing...
+
+	 * Update: someone in the future has decided to do the right
+	 * thing. Welcome to 2017, ircv3 exists. And prefix= is also true.
 	 */
-	for (;;)
+
+	new_n = (Nick *)new_malloc(sizeof(Nick));
+
+	// You aren't until you are
+	half_assed = isvoice = ischop = 0;
+	for (/* noop */; srv->prefixes[*nick] != 0; nick++)
 	{
-		if (!strchr(prefix, *nick))
-		{
-			break;
+		//say("prefix mode %c processing for %s", *nick, nick);
+		if (i == 15) {
+			// brakes!
+			new_n->prefixes[i++] = *nick;
+			new_n->prefixes[16] = '\0';
+		} else new_n->prefixes[i++] = *nick;
+		switch (srv->isopprefix[*nick]) {
+			case 2:
+				ischop = 1;
+				break;
+			case 1:
+				half_assed = 1;
+				break;
+			case 0:
+				// Well it is a prefix character, so if it's +, they're voice.
+				if (*nick == '+') isvoice = 1;
+				break;
 		}
-		else if (*nick == '+')
-		{
-			nick++;
-			if (is_me(server, nick))
-				chan->voice = 1;
-			isvoice = 1;
-			break;
-		}
-		else if (*nick == '@')
-		{
-			nick++;
-			if (is_me(server, nick))
-				chan->chop = 1;
-			else 
-			{
-				if (isvoice == 0)
-					isvoice = -1;
-				if (half_assed == 0)
-					half_assed = -1;
-			}
-			ischop = 1;
-			break;
-		}
-		else if (*nick == '%')
-		{
-			nick++;
-			if (is_me(server, nick))
-				chan->half_assed = 1;
-			else
-			{
-				if (isvoice == 0)
-					isvoice = -1;
-			}
-			half_assed = 1;
-			break;
-		}
-		else
-		{
-			nick++;
-			break;
+	}
+	new_n->prefixes[i] = '\0'; // cap the prefixes quite nicely with a null
+	// Is it us?!
+	if (is_me(server, nick))	{
+		// YES!
+		// Now let's see what we are after all that!
+		if (ischop) chan->chop = 1;
+		if (half_assed) chan->half_assed = 1;
+		if (isvoice) chan->voice = 1;
+		if (i != 0) {
+			for (j = 0; j < i; j++) chan->prefixes[j] = new_n->prefixes[j];
 		}
 	}
 
-	new_n = (Nick *)new_malloc(sizeof(Nick));
 	new_n->nick = malloc_strdup(nick);
+
 	new_n->userhost = NULL;
 	new_n->suspicious = suspicious;
 	new_n->chanop = ischop;
@@ -784,7 +861,8 @@ static void	decifer_mode (const char *modes, Channel *chan)
 	Nick *	nick;
 	char *	mode_str;
 	char	local_buffer[BIG_BUFFER_SIZE];
-	int	type;
+	int	type, i;
+	Server *srv = get_server(chan->server);
 
 	/* Make a copy of it.*/
 	mode_str = LOCAL_COPY(modes);
@@ -873,27 +951,42 @@ static void	decifer_mode (const char *modes, Channel *chan)
 			if (!arg)
 			    arg = get_server_nickname(from_server);
 
+			// Sigh, since we're doing things the right way now for not-quite-IRC servers like Unreal...
+			// Rebuild the prefix list (work out if we're represented already, if we are, and adding,
+			// do nout, if we aren't, and deleting, do nout...)
+
 			if (is_me(from_server, arg))
 				chan->chop = add;
-			if ((nick = find_nick_on_channel(chan, arg)))
+			if ((nick = find_nick_on_channel(chan, arg))) {
+				if (add)
+					add_mode_to_str(nick->prefixes, 17, srv->prefixmodes[*mode_str]);
+				else
+					remove_mode_from_str(nick->prefixes, 17, srv->prefixmodes[*mode_str]);
 				nick->chanop = add;
+			}
 			continue;
 		}
+		// jimbus crip... gotta move at least +h outta this establishment.
 		case 'v':
 		{
 			if (!arg)
 			{
 				yell("Channel %s got a mode +v "
 				     "without an argument.  "
-				     "This server broke backwards compatability",
+				     "This server broke backwards compatibility",
 					chan->channel);
 				continue;
 			}
 
 			if (is_me(from_server, arg))
 				chan->voice = add;
-			if ((nick = find_nick_on_channel(chan, arg)))
+			if ((nick = find_nick_on_channel(chan, arg))) {
+				if (add)
+					add_mode_to_str(nick->prefixes, 17, srv->prefixmodes[*mode_str]);
+				else
+					remove_mode_from_str(nick->prefixes, 17, srv->prefixmodes[*mode_str]);
 				nick->voice = add;
+			}
 			continue;
 		}
 		case 'h': /* erfnet's borked 'half-assed oper' mode */
@@ -902,15 +995,20 @@ static void	decifer_mode (const char *modes, Channel *chan)
 			{
 				yell("Channel %s got a mode +h "
 				     "without an argument.  "
-				     "This server broke backwards compatability",
+				     "This server broke backwards compatibility",
 					chan->channel);
 				continue;
 			}
 
 			if (is_me(from_server, arg))
 				chan->half_assed = add;
-			if ((nick = find_nick_on_channel(chan, arg)))
+			if ((nick = find_nick_on_channel(chan, arg))) {
+				if (add)
+					add_mode_to_str(nick->prefixes, 17, srv->prefixmodes[*mode_str]);
+				else
+					remove_mode_from_str(nick->prefixes, 17, srv->prefixmodes[*mode_str]);
 				nick->half_assed = add;
+			}
 			continue;
 		}
 
@@ -923,6 +1021,13 @@ static void	decifer_mode (const char *modes, Channel *chan)
 			add_mode_to_str(chan->base_modes, 54, *mode_str);
 		    else
 			remove_mode_from_str(chan->base_modes, 54, *mode_str);
+	            if (srv->prefixmodes[*mode_str] != 0) {
+			// tricky ircd specific modes that we have to support
+			if (add)
+				add_mode_to_str(nick->prefixes, 17, srv->prefixmodes[*mode_str]);
+			else
+				remove_mode_from_str(nick->prefixes, 17, srv->prefixmodes[*mode_str]);
+	            }
 		}
 	    }
 	}

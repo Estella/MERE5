@@ -42,7 +42,7 @@
  *  the client will NOT compile and work properly!  Use the default here if
  *  you dont have other servers to use.
  */
-#define DEFAULT_SERVER "irc.efnet.net irc.undernet.org irc.dal.net"
+#define DEFAULT_SERVER "127.0.0.1"
 
 /*
  * This is the location of your SSL certificate file.

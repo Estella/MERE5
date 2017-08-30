@@ -80,6 +80,26 @@ const	AI	*next_addr;		/* The next one to try upon failure */
 	int	server2_8;		/* defined if we get an 001 numeric */
 	char	*version_string;	/* what is says */
 	char	umode[54];		/* Currently set user modes */
+	char	prefixmodes[256];	/* A quarter kilobyte of crud.
+					 * Query with:
+					 * server->prefixmodes['q']
+					 * or server->prefixmodes['~']
+	                                 * Used by the modern prefix support
+	                                 * to cope with IRCds like Unreal
+	                                 * A user w/ a prefix to the left of
+	                                 * @ is assumed to be op by default.
+	                                 */
+	char	prefixes[256];		/* A quarter kilobyte of crud.
+					 * Query with:
+					 * or server->prefixmodes['~']
+	                                 * A user w/ a prefix to the left of
+	                                 * @ is assumed to be op by default.
+	                                 */
+	short	isopprefix[256];	/* ... Also a quarter kilobyte of crud.
+					 * 0 = not at least hop, 1 = hop, 2 = op
+	                                 * if (server->isopprefix['~'] == 0)
+	                                 * then '~' is below op or dead.
+	                                 */
 	int	des;			/* file descriptor to server */
 	int	sent;			/* set if something has been sent,
 					 * used for redirect */
@@ -406,6 +426,7 @@ const char *	get_server_funny_match         	(int);
 const	char *	get_server_default_encoding	(int);
 
 	char *	serverctl			(char *);
+	char *	validprefixes			(char *);
 
 	int	server_more_addrs		(int);
 	int	server_addrs_left		(int);

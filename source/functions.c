@@ -426,6 +426,7 @@ static	char
 	*function_uniq		(char *),
 	*function_unlink 	(char *),
 	*function_unsplit	(char *),
+	*function_validprefixes	(char *),
 	*function_which 	(char *),
 	*function_winchan	(char *),
 	*function_windowctl	(char *),
@@ -767,6 +768,7 @@ static BuiltInFunctions	built_in_functions[] =
 	{ "USERMODE",		function_umode		},
 	{ "USETITEM",           function_usetitem 	},
 	{ "UTIME",		function_utime	 	},
+	{ "VALIDPREFIXES",	function_validprefixes	},
 	{ "VERSION",		function_server_version },
 	{ "WHICH",		function_which 		},
 	{ "WINCHAN",		function_winchan	},
@@ -6860,6 +6862,11 @@ BUILT_IN_FUNCTION(function_encryptparm, input)
 BUILT_IN_FUNCTION(function_serverctl, input)
 {
 	return serverctl(input);
+}
+
+BUILT_IN_FUNCTION(function_validprefixes, input)
+{
+	return validprefixes(input);
 }
 
 

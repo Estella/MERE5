@@ -1080,7 +1080,7 @@ char *	create_server_list (void)
 					get_server_itsname(i), &bufclue);
 	}
 
-	RETURN_MSTR(buffer);
+	RETURN_STR(buffer);
 }
 
 /* server_list_size: returns the number of servers in the server list */
@@ -4223,6 +4223,25 @@ sorry_wrong_number:
 	    ;
 	}
 	return retval;
+}
+
+// builds up a very simple list of PREFIXes of modes for the nicklist
+// usable by scripts like lice5
+char	*validprefixes	(char *input)
+{
+	int refnum;
+	const char *ptochars; char *ptobrack;
+	if (strlen(input) == 0) RETURN_EMPTY;
+	GET_INT_ARG(refnum, input);
+	if (!get_server(refnum)) RETURN_EMPTY;
+
+	//say("Reached meat of validprefixes");
+	ptochars = get_server_005(refnum, "PREFIX");
+	//say("PROTOCTL PREFIX=%s", ptochars);
+	ptobrack = malloc_strdup(strchr(ptochars, ')') + 1);
+	//say("ptobrack is%s null - %s", (ptobrack == NULL) ? "" : " not", (ptobrack != NULL) ? ptobrack : "nothing to show");
+
+	RETURN_MSTR(ptobrack);
 }
 
 /* Used by function_serverctl */

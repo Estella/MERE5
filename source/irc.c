@@ -207,28 +207,28 @@ const char	empty_string[] = "",		/* just an empty string */
 unsigned char	*cut_buffer = (unsigned char *) 0;	/* global cut_buffer */
 
 static		char	switch_help[] =
-"Usage: epic [switches] [nickname] [server list]                      \n\
-  The [nickname] can be up to 30 characters long                      \n\
-  The [server list] are one or more server descriptions               \n\
-  The [switches] are zero or more of the following:                   \n\
+"Usage: epic [switches] [nickname] [server list]                      \r\n\
+  The [nickname] can be up to 30 characters long                      \r\n\
+  The [server list] are one or more server descriptions               \r\n\
+  The [switches] are zero or more of the following:                   \r\n\
       -a\tThe [server list] adds to default server list               \n"
 #ifndef NO_BOTS
 "      -b\tThe program should run in the background ``bot mode''       \n"
 #endif
-"      -B\tLoads your .ircrc file before you connect to a server.      \n\
-      -d\tThe program should run in ``dumb mode'' (no fancy screen)   \n\
-      -h\tPrint this help message                                     \n\
-      -q\tThe program will not load your .ircrc file                  \n\
-      -s\tThe program will not connect to a server upon startup       \n\
-      -S\tEach argument will be tokenised by whitechar                \n\
-      -v\tPrint the version of this irc client and exit               \n\
-      -x\tRun the client in full X_DEBUG mode                         \n\
-      -c <chan>\tJoin <chan> after first connection to a server       \n\
-      -H <host>\tUse a virtual host instead of default hostname	      \n\
-      -l <file>\tLoads <file> instead of your .ircrc file             \n\
-      -L <file>\tLoads <file> instead of your .ircrc file             \n\
-      -n <nick>\tThe program will use <nick> as your default nickname \n\
-      -p <port>\tThe program will use <port> as the default portnum   \n\
+"      -B\tLoads your .ircrc file before you connect to a server.      \r\n\
+      -d\tThe program should run in ``dumb mode'' (no fancy screen)   \r\n\
+      -h\tPrint this help message                                     \r\n\
+      -q\tThe program will not load your .ircrc file                  \r\n\
+      -s\tThe program will not connect to a server upon startup       \r\n\
+      -S\tEach argument will be tokenised by whitechar                \r\n\
+      -v\tPrint the version of this irc client and exit               \r\n\
+      -x\tRun the client in full X_DEBUG mode                         \r\n\
+      -c <chan>\tJoin <chan> after first connection to a server       \r\n\
+      -H <host>\tUse a virtual host instead of default hostname	      \r\n\
+      -l <file>\tLoads <file> instead of your .ircrc file             \r\n\
+      -L <file>\tLoads <file> instead of your .ircrc file             \r\n\
+      -n <nick>\tThe program will use <nick> as your default nickname \r\n\
+      -p <port>\tThe program will use <port> as the default portnum   \r\n\
       -z <user>\tThe program will use <user> as your default username \n";
 
 
@@ -355,27 +355,27 @@ static SIGNAL_HANDLER(coredump)
 	{
 		term_reset();
 		fprintf(stderr, "\
-									\n\
-									\n\
-									\n\
-* * * * * * * * * * * * * * * * * * * * * * * *				\n\
-EPIC has trapped a critical protection error.				\n\
-This is probably due to a bug in the program.				\n\
-									\n\
-If you have access to the 'BUG_FORM' in the ircII source distribution,	\n\
-we would appreciate your filling it out if you feel doing so would	\n\
-be helpful in finding the cause of your problem.			\n\
-									\n\
-If you do not know what the 'BUG_FORM' is or you do not have access	\n\
-to it, please dont worry about filling it out.  You might try talking	\n\
-to the person who is in charge of IRC at your site and see if you can	\n\
-get them to help you.							\n\
-									\n\
-This version of EPIC is --->[%s (%lu)]					\n\
-The date of release is  --->[%s]					\n\
-									\n\
-* * * * * * * * * * * * * * * * * * * * * * * *				\n\
-The program will now terminate.						\n", irc_version, commit_id, internal_version);
+									\r\n\
+									\r\n\
+									\r\n\
+* * * * * * * * * * * * * * * * * * * * * * * *				\r\n\
+EPIC has trapped a critical protection error.				\r\n\
+This is probably due to a bug in the program.				\r\n\
+									\r\n\
+If you have access to the 'BUG_FORM' in the ircII source distribution,	\r\n\
+we would appreciate your filling it out if you feel doing so would	\r\n\
+be helpful in finding the cause of your problem.			\r\n\
+									\r\n\
+If you do not know what the 'BUG_FORM' is or you do not have access	\r\n\
+to it, please dont worry about filling it out.  You might try talking	\r\n\
+to the person who is in charge of IRC at your site and see if you can	\r\n\
+get them to help you.							\r\n\
+									\r\n\
+This version of EPIC is --->[%s (%lu)]					\r\n\
+The date of release is  --->[%s]					\r\n\
+									\r\n\
+* * * * * * * * * * * * * * * * * * * * * * * *				\r\n\
+The program will now terminate.						\r\n", irc_version, commit_id, internal_version);
 
 		fflush(stdout);
 		panic_dump_call_stack();
@@ -452,7 +452,7 @@ static SIGNAL_HANDLER(sig_user2)
 
 static	void	show_version (void)
 {
-	printf("ircII %s (Commit id: %lu) (Date of release: %s)\n\r", 
+	printf("ircII %s (Commit id: %lu) (Date of release: %s)\r\n\r", 
 			irc_version, commit_id, internal_version);
 	exit (0);
 }

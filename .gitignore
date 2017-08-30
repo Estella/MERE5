@@ -9,3 +9,5 @@ source/epic5
 source/info.c.sh
 source/wserv4
 my_test
+configure
+autom4te.cache/
