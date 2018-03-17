@@ -47,6 +47,7 @@
 #include "alist.h"
 #include "array.h"
 #include "clock.h"
+#include "ctcp.h"
 #include "dcc.h"
 #include "debug.h"
 #include "commands.h"
@@ -510,6 +511,7 @@ static BuiltInFunctions	built_in_functions[] =
 	{ "COUNT",		function_count		},
 	{ "CPARSE",		function_cparse		},
 	{ "CRYPT",		function_crypt		},
+	{ "CTCPCTL",		function_ctcpctl	},
 	{ "CURCMD",		function_curcmd		},
 	{ "CURPOS",		function_curpos 	},
 	{ "CURRCHANS",		function_currchans	},
@@ -3039,7 +3041,7 @@ const	unsigned char	*p, *s;
 		s = search;
 		while ((d = next_code_point(&s, 1)))
 		{
-			if ((c == d) + inverted == 1)
+			if (c == d)
 			{
 				found = 1;
 				break;
@@ -3047,7 +3049,7 @@ const	unsigned char	*p, *s;
 		}
 
 		/* If we found a match, put a space here. */
-		if (found)
+		if (found != inverted)
 			*r++ = ' ';
 		/* Otherwise, copy the code point over */
 		else
@@ -6849,7 +6851,7 @@ BUILT_IN_FUNCTION(function_encryptparm, input)
 	Crypt	*key;
 
 	GET_FUNC_ARG(entry, input);
-	if ((key = is_crypted(entry, from_server, ANYCRYPT))) 
+	if ((key = is_crypted(entry, from_server, NULL))) 
 	{
 		malloc_strcat_word_c(&ret, space, key->nick, DWORD_DWORDS, &clue);
 		malloc_strcat_word_c(&ret, space, key->passwd, DWORD_DWORDS, &clue);

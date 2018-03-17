@@ -510,9 +510,9 @@ BUILT_IN_COMMAND(commentcmd)
 BUILT_IN_COMMAND(ctcp)
 {
 	const char	*to;
-	char	*stag;
-	int	tag;
-	int	type;
+	char *	stag;
+	int	i;
+	int	request;
 
 	if ((to = next_arg(args, &args)) != NULL)
 	{
@@ -521,19 +521,21 @@ BUILT_IN_COMMAND(ctcp)
 				to = zero;
 
 		if ((stag = next_arg(args, &args)) != NULL)
-			tag = get_ctcp_val(upper(stag));
+			upper(stag);
 		else
-			tag = CTCP_VERSION;
+			stag = LOCAL_COPY("VERSION");
 
-		if ((type = in_ctcp()) && get_server_doing_notice(from_server))
-			say("You may not use the CTCP command from an ON CTCP_REPLY!");
+		if (get_server_doing_notice(from_server))
+			say("You may not use the CTCP command from a NOTICE!");
+		else if (get_server_doing_privmsg(from_server))
+			request = 0;		/* XXX What about dcc chat? */
 		else
-		{
-			if (args && *args)
-				send_ctcp(type, to, tag, "%s", args);
-			else
-				send_ctcp(type, to, tag, NULL);
-		}
+			request = 1;
+
+		if (args && *args)
+			send_ctcp(request, to, stag, "%s", args);
+		else
+			send_ctcp(request, to, stag, NULL);
 	}
 	else
 		say("Usage: /CTCP <[=]nick|channel|*> [<request>]");
@@ -628,7 +630,7 @@ BUILT_IN_COMMAND(describe)
 		message = args;
 
 		l = message_from(target, LEVEL_ACTION);
-		send_ctcp(CTCP_PRIVMSG, target, CTCP_ACTION, "%s", message);
+		send_ctcp(1, target, "ACTION", "%s", message);
 		if (do_hook(SEND_ACTION_LIST, "%s %s", target, message))
 			put_it("* -> %s: %s %s", target, get_server_nickname(from_server), message);
 		pop_message_from(l);
@@ -2291,8 +2293,7 @@ BUILT_IN_COMMAND(mecmd)
 
 		if ((target = get_target_by_refnum(0)) != NULL)
 		{
-			send_ctcp(CTCP_PRIVMSG, target, CTCP_ACTION, 
-					"%s", args);
+			send_ctcp(1, target, "ACTION", "%s", args);
 
 			l = message_from(target, LEVEL_ACTION);
 			if (do_hook(SEND_ACTION_LIST, "%s %s", target, args))
@@ -3305,7 +3306,7 @@ struct target_type target[4] =
 			continue;
 		}
 
-		if ((key = is_crypted(current_nick, -1, ANYCRYPT)) != 0)
+		if ((key = is_crypted(current_nick, -1, NULL)) != 0)
 		{
 			char *breakage = LOCAL_COPY(recode_text);
 			line = crypt_msg(breakage, key);
@@ -3360,7 +3361,7 @@ struct target_type target[4] =
 				(command && !strcmp(command, "NOTICE")))
 			i += 2;
 
-		if ((key = is_crypted(current_nick, from_server, ANYCRYPT)))
+		if ((key = is_crypted(current_nick, from_server, NULL)))
 		{
 			int	l;
 

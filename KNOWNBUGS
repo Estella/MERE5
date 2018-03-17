@@ -5,7 +5,6 @@ KNOWN ERRATA (eg, bugs, or unresolved requests):
 * There should be a registerable callback for fd's gone bad. (newio)
 * What about rotate-able logfiles? (skered)
 * What about /query-ing an exec process, going to proper window? (skered)
-* You should be able to do /on ctcp_requests that do inline replacement (like CTCP UTC)
 
 EPIC5-3.0 MAJOR PROJECTS
 ------------------------
@@ -826,4 +825,28 @@ THE CHANGELOG SINCE THE LAST RELEASE:
 * Make new_io_event() actually support NEWIO_NULL (no io callback)
 * Python support merged into 'master' here.
 * Add new_open_failure_callback() which allows getting a callback on dead fd.
-
+* Add %{1}P status bar variable, "prefix when (not) current" (see UPDATES)
+* Add /set status_prefix_when(_not)_current variables, default to empty string
+* Add /window status_prefix_when(_not)_current operations, default to nothing
+* Convert CTCP data structures from static arrays to a bucket
+* Initialize hardcoded CTCPs at boot time
+* Guard against null deref when changing lastlog and/or scrollback at same time
+* Overhaul ctcp.c so there are no more magic integers used as foreign keys.
+* Fix a core and leak to do with /userhost and /ison queues (ce)
+* Revamp/unify do_ctcp() and do_notice_ctcp() to reduce code duplication
+* Change send_ctcp() to take a boolean int rather than a string for first param.
+* Simplify the CTCP flags to just "ordinary" and "special", with "raw" (or not)
+* CTCPs are "raw" if they need the original payload, or not if payload is string
+* CTCPs are "special" if they handle everything themselves (/me, /dcc)
+* Enforce anti-botnet CTCP reply flooding on the /CTCP side, not request side
+* (That way, CTCPs that don't generate responses are not throttled)
+* Implement $ctcpctl() to register user-defined ctcp handlers. (see UPDATES)
+* Add $ctcpctl(ALL) for CLIENTINFO purposes.
+* Create /load ctcp, some basic CTCPs implemented in script
+* Make /load builtins do a /load ctcp 
+* Comment out some basic CTCPs from the base client -- yay!
+* Treat empty return strings from ctcp handlers as "not handled"
+* Initialize status.prefix_when_(not_)current in new windows.
+* Create a distinction between CTCPs that replace their bodies and themselves
+* via $ctcpctl(SET <type> REPLACE_ARGS 0|1) [see UPDATES]
+* Rewrite CTCP PING handler, create CTCP UTC handler

@@ -253,6 +253,8 @@ Window	*new_window (Screen *screen)
 	make_status(new_w, &new_w->status);
 	window_statusbar_needs_update(new_w);
 	window_statusbar_needs_redraw(new_w);
+	new_w->status.prefix_when_current = NULL;
+	new_w->status.prefix_when_not_current = NULL;
 
 	/* Scrollback stuff */
 	new_w->top_of_scrollback = NULL;	/* Filled in later */
@@ -2137,6 +2139,16 @@ static void	restore_window_positions (Window *w, intmax_t scrolling, intmax_t ho
 		w->holding_top_of_display = w->top_of_scrollback;
 	if (!w->scrollback_top_of_display && scrollback != -1)
 		w->scrollback_top_of_display = w->top_of_scrollback;
+
+	/* 
+	 * We must _NEVER_ allow scrolling_top_of_display to be NULL.
+	 * If it is, recalculate_window_cursor_and_display_ip() will null deref.
+	 * I don't know what the right thing to do is, so I choose to
+	 * move the scrolling display to the bottom (ie, /unclear).
+	 * This seems the least worst hack.
+	 */
+	if (!w->scrolling_top_of_display)
+		unclear_window(w);
 
 	recalculate_window_cursor_and_display_ip(w);
 	if (w->scrolling_distance_from_display_ip >= w->display_lines)
@@ -5747,6 +5759,29 @@ static Window *window_status_format2 (Window *window, char **args)
 	return window;
 }
 
+static Window *window_status_prefix_when_current (Window *window, char **args)
+{
+	char *arg;
+
+	arg = new_next_arg(*args, args);
+	malloc_strcpy(&window->status.prefix_when_current, arg);
+	window_statusbar_needs_redraw(window);
+
+	return window;
+}
+
+static Window *window_status_prefix_when_not_current (Window *window, char **args)
+{
+	char *arg;
+
+	arg = new_next_arg(*args, args);
+	malloc_strcpy(&window->status.prefix_when_not_current, arg);
+	window_statusbar_needs_redraw(window);
+
+	return window;
+}
+
+
 static Window *window_status_special (Window *window, char **args)
 {
 	char *arg;
@@ -5945,6 +5980,8 @@ static const window_ops options [] = {
 	{ "STATUS_FORMAT",	window_status_format	},
 	{ "STATUS_FORMAT1",	window_status_format1	},
 	{ "STATUS_FORMAT2",	window_status_format2	},
+	{ "STATUS_PREFIX_WHEN_CURRENT",		window_status_prefix_when_current	},
+	{ "STATUS_PREFIX_WHEN_NOT_CURRENT",	window_status_prefix_when_not_current	},
 	{ "STATUS_SPECIAL",	window_status_special	},
 	{ "SWAP",		window_swap 		},
 	{ "SWAPPABLE",		window_swappable	},
@@ -6875,6 +6912,11 @@ void 	recalculate_window_cursor_and_display_ip (Window *window)
 		window->scrollback_distance_from_display_ip = 
 			window->display_ip->count - 
 				window->scrollback_top_of_display->count;
+
+	/* XXX This is a sanity check hack. */
+	if (window->scrolling_top_of_display == NULL)
+		window->scrolling_top_of_display = window->display_ip;
+
 	window->scrolling_distance_from_display_ip = 
 		window->display_ip->count - 
 			window->scrolling_top_of_display->count;
